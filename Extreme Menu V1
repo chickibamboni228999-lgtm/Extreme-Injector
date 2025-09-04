@@ -1,0 +1,253 @@
+local UIS = game:GetService("UserInputService")
+local RS = game:GetService("RunService")
+local Players = game:GetService("Players")
+local TweenService = game:GetService("TweenService")
+
+local player = Players.LocalPlayer
+local character = player.Character or player.CharacterAdded:Wait()
+local humanoid = character:WaitForChild("Humanoid")
+
+if player.PlayerGui:FindFirstChild("ExtremeMenu") then
+    player.PlayerGui:FindFirstChild("ExtremeMenu"):Destroy()
+end
+
+local screenGui = Instance.new("ScreenGui")
+screenGui.Name = "ExtremeMenu"
+screenGui.ResetOnSpawn = false
+screenGui.Parent = player:WaitForChild("PlayerGui")
+
+local frame = Instance.new("Frame")
+frame.Size = UDim2.new(0, 520, 0, 420)
+frame.Position = UDim2.new(0.5, -260, 0.5, -210)
+frame.AnchorPoint = Vector2.new(0.5, 0.5)
+frame.BackgroundColor3 = Color3.fromRGB(10, 10, 15)
+frame.BorderSizePixel = 0
+frame.Visible = false
+frame.Parent = screenGui
+
+local corner = Instance.new("UICorner")
+corner.CornerRadius = UDim.new(0, 16)
+corner.Parent = frame
+
+local title = Instance.new("TextLabel")
+title.Size = UDim2.new(1, 0, 0, 50)
+title.BackgroundTransparency = 1
+title.Text = "Extreme Menu"
+title.Font = Enum.Font.GothamBold
+title.TextSize = 30
+title.TextColor3 = Color3.fromRGB(200, 220, 255)
+title.Parent = frame
+
+local scroll = Instance.new("ScrollingFrame")
+scroll.Size = UDim2.new(1, -20, 1, -60)
+scroll.Position = UDim2.new(0, 10, 0, 55)
+scroll.CanvasSize = UDim2.new(0, 0, 0, 0)
+scroll.ScrollBarThickness = 6
+scroll.BackgroundTransparency = 1
+scroll.Parent = frame
+
+local listLayout = Instance.new("UIListLayout")
+listLayout.Padding = UDim.new(0, 10)
+listLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+listLayout.SortOrder = Enum.SortOrder.LayoutOrder
+listLayout.Parent = scroll
+
+listLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
+    scroll.CanvasSize = UDim2.new(0, 0, 0, listLayout.AbsoluteContentSize.Y + 10)
+end)
+
+local function createButton(name, callback)
+    local btn = Instance.new("TextButton")
+    btn.Size = UDim2.new(0, 300, 0, 45)
+    btn.BackgroundColor3 = Color3.fromRGB(20, 20, 30)
+    btn.Text = name
+    btn.Font = Enum.Font.GothamSemibold
+    btn.TextSize = 20
+    btn.TextColor3 = Color3.fromRGB(200, 220, 255)
+    btn.Parent = scroll
+
+    local btnCorner = Instance.new("UICorner")
+    btnCorner.CornerRadius = UDim.new(0, 10)
+    btnCorner.Parent = btn
+
+    btn.MouseButton1Click:Connect(callback)
+
+    btn.MouseEnter:Connect(function()
+        TweenService:Create(btn, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(40, 40, 60)}):Play()
+    end)
+    btn.MouseLeave:Connect(function()
+        TweenService:Create(btn, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(20, 20, 30)}):Play()
+    end)
+end
+
+local dragging, dragInput, dragStart, startPos
+local function update(input)
+    local delta = input.Position - dragStart
+    frame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+end
+
+title.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+        dragging = true
+        dragStart = input.Position
+        startPos = frame.Position
+        input.Changed:Connect(function()
+            if input.UserInputState == Enum.UserInputState.End then
+                dragging = false
+            end
+        end)
+    end
+end)
+
+UIS.InputChanged:Connect(function(input)
+    if input == dragInput and dragging then
+        update(input)
+    end
+end)
+
+UIS.InputChanged:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
+        dragInput = input
+    end
+end)
+
+local flyEnabled, flyBV = false, nil
+local infJumpEnabled = false
+local noclipEnabled = false
+local lastCheckpoint = nil
+
+player.CharacterAdded:Connect(function(char)
+    character = char
+    humanoid = char:WaitForChild("Humanoid")
+end)
+
+createButton("✈️ Fly", function()
+    flyEnabled = not flyEnabled
+    if flyEnabled then
+        flyBV = Instance.new("BodyVelocity")
+        flyBV.Velocity = Vector3.zero
+        flyBV.MaxForce = Vector3.new(1e5, 1e5, 1e5)
+        flyBV.Parent = character:WaitForChild("HumanoidRootPart")
+        RS.Heartbeat:Connect(function()
+            if flyEnabled and flyBV then
+                local moveDir = Vector3.zero
+                if UIS:IsKeyDown(Enum.KeyCode.W) then moveDir += workspace.CurrentCamera.CFrame.LookVector * 60 end
+                if UIS:IsKeyDown(Enum.KeyCode.S) then moveDir -= workspace.CurrentCamera.CFrame.LookVector * 60 end
+                if UIS:IsKeyDown(Enum.KeyCode.A) then moveDir -= workspace.CurrentCamera.CFrame.RightVector * 60 end
+                if UIS:IsKeyDown(Enum.KeyCode.D) then moveDir += workspace.CurrentCamera.CFrame.RightVector * 60 end
+                if UIS:IsKeyDown(Enum.KeyCode.Space) then moveDir += Vector3.new(0, 60, 0) end
+                if UIS:IsKeyDown(Enum.KeyCode.LeftControl) then moveDir -= Vector3.new(0, 60, 0) end
+                flyBV.Velocity = moveDir
+            end
+        end)
+    else
+        if flyBV then
+            flyBV:Destroy()
+            flyBV = nil
+        end
+    end
+end)
+
+createButton("🚪 Noclip", function()
+    noclipEnabled = not noclipEnabled
+    RS.Stepped:Connect(function()
+        if noclipEnabled then
+            for _, v in pairs(character:GetDescendants()) do
+                if v:IsA("BasePart") then v.CanCollide = false end
+            end
+        end
+    end)
+end)
+
+createButton("🦘 Infinite Jump", function()
+    infJumpEnabled = not infJumpEnabled
+end)
+
+UIS.JumpRequest:Connect(function()
+    if infJumpEnabled then humanoid:ChangeState("Jumping") end
+end)
+
+createButton("⚡ Speed x2", function()
+    humanoid.WalkSpeed = humanoid.WalkSpeed == 16 and 32 or 16
+end)
+
+createButton("⬆️ High Jump", function()
+    humanoid.JumpPower = 100
+end)
+
+createButton("🌙 Low Gravity", function()
+    workspace.Gravity = 50
+end)
+
+createButton("💎 Godmode", function()
+    humanoid.Health = math.huge
+    humanoid:GetPropertyChangedSignal("Health"):Connect(function()
+        if humanoid.Health < 1 then humanoid.Health = math.huge end
+    end)
+end)
+
+createButton("🔥 AntiKillParts", function()
+    for _, part in pairs(workspace:GetDescendants()) do
+        if part:IsA("BasePart") and part.Name:lower():match("kill") then
+            if part:FindFirstChildOfClass("TouchTransmitter") then
+                part:FindFirstChildOfClass("TouchTransmitter"):Destroy()
+            end
+        end
+    end
+end)
+
+createButton("🟦 Spawn Platform", function()
+    local platform = Instance.new("Part")
+    platform.Size = Vector3.new(10, 1, 10)
+    platform.Anchored = true
+    platform.Position = character.HumanoidRootPart.Position - Vector3.new(0, 3, 0)
+    platform.Parent = workspace
+end)
+
+createButton("💾 Save Checkpoint", function()
+    lastCheckpoint = character.HumanoidRootPart.Position
+end)
+
+createButton("📌 Teleport to Checkpoint", function()
+    if lastCheckpoint then character:MoveTo(lastCheckpoint) end
+end)
+
+createButton("🔄 Reset Character", function()
+    character:BreakJoints()
+end)
+
+local function toggleMenu()
+    if frame.Visible then
+        local tween = TweenService:Create(frame, TweenInfo.new(0.3), {Size = UDim2.new(0, 0, 0, 0)})
+        tween:Play()
+        tween.Completed:Wait()
+        frame.Visible = false
+        frame.Size = UDim2.new(0, 520, 0, 420)
+    else
+        frame.Visible = true
+        frame.Size = UDim2.new(0, 0, 0, 0)
+        TweenService:Create(frame, TweenInfo.new(0.3), {Size = UDim2.new(0, 520, 0, 420)}):Play()
+    end
+end
+
+UIS.InputBegan:Connect(function(input, gpe)
+    if not gpe and input.KeyCode == Enum.KeyCode.B then
+        toggleMenu()
+    end
+end)
+
+local mobileBtn = Instance.new("TextButton")
+mobileBtn.Size = UDim2.new(0, 60, 0, 60)
+mobileBtn.Position = UDim2.new(1, -70, 1, -70)
+mobileBtn.BackgroundColor3 = Color3.fromRGB(200, 220, 255)
+mobileBtn.Text = "≡"
+mobileBtn.Font = Enum.Font.GothamBold
+mobileBtn.TextSize = 28
+mobileBtn.TextColor3 = Color3.fromRGB(10, 10, 15)
+mobileBtn.Parent = screenGui
+
+local mbCorner = Instance.new("UICorner")
+mbCorner.CornerRadius = UDim.new(1, 0)
+mbCorner.Parent = mobileBtn
+
+mobileBtn.MouseButton1Click:Connect(toggleMenu)
