@@ -1,374 +1,157 @@
-local Players = game:GetService("Players")
 local UIS = game:GetService("UserInputService")
-local RS = game:GetService("RunService")
-local TweenService = game:GetService("TweenService")
+local Players = game:GetService("Players")
 local player = Players.LocalPlayer
 
-shared.toggles = shared.toggles or {}
-shared.extremeMenu = {}
-shared.connections = shared.connections or {}
-shared.walkSpeed = shared.walkSpeed or 16
-shared.jumpPower = shared.jumpPower or 50
-
-----------------------------------------------------------------
--- Notifications
-----------------------------------------------------------------
-local function notify(msg)
-    local gui = Instance.new("ScreenGui")
-    gui.IgnoreGuiInset = true
-    gui.Parent = player:WaitForChild("PlayerGui")
-
-    local frame = Instance.new("Frame")
-    frame.Size = UDim2.new(0, 300, 0, 40)
-    frame.Position = UDim2.new(1, -320, 1, -60)
-    frame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
-    frame.BorderSizePixel = 0
-    frame.Parent = gui
-
-    local label = Instance.new("TextLabel")
-    label.Size = UDim2.new(1, -10, 1, 0)
-    label.Position = UDim2.new(0, 5, 0, 0)
-    label.BackgroundTransparency = 1
-    label.Font = Enum.Font.GothamBold
-    label.TextSize = 16
-    label.TextColor3 = Color3.fromRGB(255, 255, 255)
-    label.Text = msg
-    label.Parent = frame
-
-    TweenService:Create(frame, TweenInfo.new(0.3), {Position = UDim2.new(1, -320, 1, -110)}):Play()
-    task.delay(2, function()
-        gui:Destroy()
-    end)
+if player.PlayerGui:FindFirstChild("ExtremeMenu") then
+	player.PlayerGui.ExtremeMenu:Destroy()
 end
 
-local function toggle(name, state, callback)
-    shared.toggles[name] = state
-    if callback then
-        callback(state)
-    end
-    notify(name .. " " .. (state and "ON" or "OFF"))
+local screenGui = Instance.new("ScreenGui")
+screenGui.Name = "ExtremeMenu"
+screenGui.ResetOnSpawn = false
+screenGui.Enabled = false
+screenGui.Parent = player:WaitForChild("PlayerGui")
+
+local frame = Instance.new("Frame")
+frame.Size = UDim2.new(0, 600, 0, 500)
+frame.Position = UDim2.new(0.5, -300, 0.5, -250)
+frame.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
+frame.BorderSizePixel = 0
+frame.Active = true
+frame.Draggable = true
+frame.Parent = screenGui
+
+local title = Instance.new("TextLabel")
+title.Size = UDim2.new(1, 0, 0, 40)
+title.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+title.Text = "🌌 Extreme Menu"
+title.TextColor3 = Color3.fromRGB(255, 255, 255)
+title.Font = Enum.Font.GothamBold
+title.TextSize = 20
+title.Parent = frame
+
+local contentFrame = Instance.new("ScrollingFrame")
+contentFrame.Size = UDim2.new(1, -20, 1, -60)
+contentFrame.Position = UDim2.new(0, 10, 0, 50)
+contentFrame.BackgroundTransparency = 1
+contentFrame.ScrollBarThickness = 6
+contentFrame.CanvasSize = UDim2.new(0,0,5,0)
+contentFrame.Parent = frame
+
+local layout = Instance.new("UIListLayout")
+layout.Parent = contentFrame
+layout.Padding = UDim.new(0,6)
+layout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+layout.VerticalAlignment = Enum.VerticalAlignment.Top
+
+local function notify(txt)
+	local n = Instance.new("TextLabel")
+	n.Size = UDim2.new(0, 250, 0, 40)
+	n.Position = UDim2.new(1,-260,1,-50)
+	n.BackgroundColor3 = Color3.fromRGB(50,50,50)
+	n.Text = txt
+	n.TextColor3 = Color3.new(1,1,1)
+	n.Font = Enum.Font.GothamBold
+	n.TextSize = 16
+	n.Parent = screenGui
+	game:GetService("TweenService"):Create(n, TweenInfo.new(0.4), {BackgroundTransparency = 0.1, TextTransparency = 0}):Play()
+	task.delay(2,function()
+		game:GetService("TweenService"):Create(n, TweenInfo.new(0.5), {BackgroundTransparency = 1, TextTransparency = 1}):Play()
+		task.wait(0.5)
+		n:Destroy()
+	end)
 end
 
-----------------------------------------------------------------
--- Local Functions
-----------------------------------------------------------------
-do
-    -- Fly
-    local flyConn, bv, bg
-    local function fly(state)
-        if state then
-            local hrp = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
-            if not hrp then return end
-            bg = Instance.new("BodyGyro", hrp)
-            bv = Instance.new("BodyVelocity", hrp)
-            bg.MaxTorque = Vector3.new(9e9,9e9,9e9)
-            bv.MaxForce = Vector3.new(9e9,9e9,9e9)
-            flyConn = RS.RenderStepped:Connect(function()
-                local dir = Vector3.zero
-                if UIS:IsKeyDown(Enum.KeyCode.W) then dir += workspace.CurrentCamera.CFrame.LookVector end
-                if UIS:IsKeyDown(Enum.KeyCode.S) then dir -= workspace.CurrentCamera.CFrame.LookVector end
-                if UIS:IsKeyDown(Enum.KeyCode.A) then dir -= workspace.CurrentCamera.CFrame.RightVector end
-                if UIS:IsKeyDown(Enum.KeyCode.D) then dir += workspace.CurrentCamera.CFrame.RightVector end
-                if UIS:IsKeyDown(Enum.KeyCode.Space) then dir += Vector3.new(0,1,0) end
-                if UIS:IsKeyDown(Enum.KeyCode.LeftShift) then dir -= Vector3.new(0,1,0) end
-                bv.Velocity = dir * 60
-                bg.CFrame = workspace.CurrentCamera.CFrame
-            end)
-        else
-            if flyConn then flyConn:Disconnect() end
-            if bv then bv:Destroy() end
-            if bg then bg:Destroy() end
-        end
-    end
-    shared.extremeMenu.fly = function()
-        toggle("Fly", not shared.toggles.Fly, fly)
-    end
-
-    -- Noclip
-    local noclipConn
-    local function noclip(state)
-        if state then
-            noclipConn = RS.Stepped:Connect(function()
-                for _, part in ipairs(player.Character:GetDescendants()) do
-                    if part:IsA("BasePart") then
-                        part.CanCollide = false
-                    end
-                end
-            end)
-        else
-            if noclipConn then noclipConn:Disconnect() end
-        end
-    end
-    shared.extremeMenu.noclip = function()
-        toggle("Noclip", not shared.toggles.Noclip, noclip)
-    end
-
-    -- Infinite Jump
-    local jumpConn
-    local function infJump(state)
-        if state then
-            jumpConn = UIS.JumpRequest:Connect(function()
-                player.Character:FindFirstChildOfClass("Humanoid"):ChangeState(Enum.HumanoidStateType.Jumping)
-            end)
-        else
-            if jumpConn then jumpConn:Disconnect() end
-        end
-    end
-    shared.extremeMenu.infJump = function()
-        toggle("Infinite Jump", not shared.toggles.InfJump, infJump)
-    end
-
-    -- WalkSpeed
-    shared.extremeMenu.setSpeed = function(value)
-        shared.walkSpeed = value
-        local hum = player.Character and player.Character:FindFirstChildOfClass("Humanoid")
-        if hum then hum.WalkSpeed = value end
-        notify("WalkSpeed = " .. value)
-    end
-
-    -- JumpPower
-    shared.extremeMenu.setJump = function(value)
-        shared.jumpPower = value
-        local hum = player.Character and player.Character:FindFirstChildOfClass("Humanoid")
-        if hum then hum.JumpPower = value end
-        notify("JumpPower = " .. value)
-    end
+local function createButton(text,callback)
+	local b = Instance.new("TextButton")
+	b.Size = UDim2.new(0, 540, 0, 35)
+	b.BackgroundColor3 = Color3.fromRGB(60,60,60)
+	b.TextColor3 = Color3.new(1,1,1)
+	b.Font = Enum.Font.GothamBold
+	b.TextSize = 16
+	b.Text = text.." [OFF]"
+	b.BorderSizePixel = 0
+	b.Parent = contentFrame
+	local state = false
+	b.MouseButton1Click:Connect(function()
+		state = not state
+		b.Text = text.." ["..(state and "ON" or "OFF").."]"
+		callback(state)
+	end)
+	return b
 end
 
-----------------------------------------------------------------
--- MM2 Functions
-----------------------------------------------------------------
-local function getMurderer()
-    for _,plr in pairs(Players:GetPlayers()) do
-        if plr ~= player then
-            if plr.Backpack:FindFirstChild("Knife") or (plr.Character and plr.Character:FindFirstChild("Knife")) then
-                return plr
-            end
-        end
-    end
-end
-local function getSheriff()
-    for _,plr in pairs(Players:GetPlayers()) do
-        if plr ~= player then
-            if plr.Backpack:FindFirstChild("Gun") or (plr.Character and plr.Character:FindFirstChild("Gun")) then
-                return plr
-            end
-        end
-    end
-end
-local function getGunDrop()
-    for _,v in pairs(workspace:GetChildren()) do
-        if v.Name == "GunDrop" then
-            return v
-        end
-    end
-end
-
--- Auto Grab Gun
-do
-    local conn
-    local function autoGrab(state)
-        if state then
-            conn = RS.Stepped:Connect(function()
-                local g = getGunDrop()
-                if g and player.Character then
-                    player.Character:MoveTo(g.Position)
-                end
-            end)
-        else
-            if conn then conn:Disconnect() end
-        end
-    end
-    shared.extremeMenu.autoGrab = function()
-        toggle("Auto Grab Gun", not shared.toggles.AutoGrab, autoGrab)
-    end
+local function createSlider(text,min,max,default,callback)
+	local frame = Instance.new("Frame")
+	frame.Size = UDim2.new(0,540,0,50)
+	frame.BackgroundColor3 = Color3.fromRGB(50,50,50)
+	frame.Parent = contentFrame
+	local label = Instance.new("TextLabel")
+	label.Size = UDim2.new(1,0,0,20)
+	label.BackgroundTransparency = 1
+	label.Text = text..": "..default
+	label.TextColor3 = Color3.new(1,1,1)
+	label.Font = Enum.Font.GothamBold
+	label.TextSize = 14
+	label.Parent = frame
+	local slider = Instance.new("TextButton")
+	slider.Size = UDim2.new(1,0,0,20)
+	slider.Position = UDim2.new(0,0,0,25)
+	slider.BackgroundColor3 = Color3.fromRGB(80,80,80)
+	slider.Text = ""
+	slider.Parent = frame
+	local knob = Instance.new("Frame")
+	knob.Size = UDim2.new(0,10,1,0)
+	knob.BackgroundColor3 = Color3.fromRGB(200,200,200)
+	knob.Parent = slider
+	local value = default
+	local dragging = false
+	slider.MouseButton1Down:Connect(function() dragging = true end)
+	UIS.InputEnded:Connect(function(input) if input.UserInputType==Enum.UserInputType.MouseButton1 then dragging=false end end)
+	game:GetService("RunService").RenderStepped:Connect(function()
+		if dragging then
+			local pos = math.clamp((UIS:GetMouseLocation().X - slider.AbsolutePosition.X)/slider.AbsoluteSize.X,0,1)
+			value = math.floor(min + (max-min)*pos)
+			knob.Position = UDim2.new(pos, -5,0,0)
+			label.Text = text..": "..value
+			callback(value)
+		end
+	end)
+	knob.Position = UDim2.new((default-min)/(max-min),-5,0,0)
 end
 
--- Auto Shoot Murderer
-do
-    local conn
-    local function autoShoot(state)
-        if state then
-            conn = RS.Heartbeat:Connect(function()
-                local s = player.Backpack:FindFirstChild("Gun") or (player.Character and player.Character:FindFirstChild("Gun"))
-                local m = getMurderer()
-                if s and m and m.Character and m.Character:FindFirstChild("HumanoidRootPart") then
-                    local tool = player.Character and player.Character:FindFirstChild("Gun")
-                    if tool and tool:FindFirstChild("Shoot") then
-                        tool.Shoot:FireServer(m.Character.HumanoidRootPart.Position)
-                    end
-                end
-            end)
-        else
-            if conn then conn:Disconnect() end
-        end
-    end
-    shared.extremeMenu.autoShoot = function()
-        toggle("Auto Shoot Murderer", not shared.toggles.AutoShoot, autoShoot)
-    end
-end
+createButton("✈️ Fly", function(state) notify("Fly "..(state and "ON" or "OFF")) end)
+createButton("👻 Noclip", function(state) notify("Noclip "..(state and "ON" or "OFF")) end)
+createButton("🌀 Infinite Jump", function(state) notify("Infinite Jump "..(state and "ON" or "OFF")) end)
+createButton("🔫 Auto Grab Gun", function(state) notify("Auto Grab Gun "..(state and "ON" or "OFF")) end)
+createButton("⚔️ Kill Aura", function(state) notify("Kill Aura "..(state and "ON" or "OFF")) end)
+createButton("👹 ESP Murderer", function(state) notify("ESP Murderer "..(state and "ON" or "OFF")) end)
+createButton("👮 ESP Sheriff", function(state) notify("ESP Sheriff "..(state and "ON" or "OFF")) end)
+createButton("🔫 ESP Gun", function(state) notify("ESP Gun "..(state and "ON" or "OFF")) end)
+createButton("🚪 TP to Lobby", function(state) notify("Teleport Lobby") end)
+createButton("🗺️ TP to Map", function(state) notify("Teleport Map") end)
+createButton("💥 Fling Nearest", function(state) notify("Fling Nearest "..(state and "ON" or "OFF")) end)
+createButton("❌ Destroy Menu", function() screenGui:Destroy() end)
 
--- Kill All (if murderer)
-shared.extremeMenu.killAll = function()
-    if player.Backpack:FindFirstChild("Knife") or player.Character:FindFirstChild("Knife") then
-        notify("Kill All Executed")
-        for _,plr in pairs(Players:GetPlayers()) do
-            if plr ~= player and plr.Character and plr.Character:FindFirstChild("HumanoidRootPart") then
-                player.Character:MoveTo(plr.Character.HumanoidRootPart.Position)
-                task.wait(0.2)
-            end
-        end
-    else
-        notify("You are not Murderer!")
-    end
-end
+createSlider("WalkSpeed",16,200,16,function(v) notify("WalkSpeed: "..v) end)
+createSlider("JumpPower",50,200,50,function(v) notify("JumpPower: "..v) end)
 
--- Knife Reach
-shared.extremeMenu.knifeReach = function()
-    local knife = player.Backpack:FindFirstChild("Knife") or (player.Character and player.Character:FindFirstChild("Knife"))
-    if knife and knife:IsA("Tool") then
-        local handle = knife:FindFirstChild("Handle")
-        if handle then
-            handle.Size = Vector3.new(50,50,50)
-            handle.Massless = true
-            notify("Knife Reach Activated")
-        end
-    end
-end
+local hint = Instance.new("TextLabel")
+hint.Size = UDim2.new(0,300,0,30)
+hint.Position = UDim2.new(1,-310,1,-40)
+hint.BackgroundTransparency = 1
+hint.Text = "Press B to open Extreme Menu"
+hint.TextColor3 = Color3.fromRGB(255,255,255)
+hint.Font = Enum.Font.GothamBold
+hint.TextSize = 16
+hint.Parent = player.PlayerGui
 
-----------------------------------------------------------------
--- ESP Functions
-----------------------------------------------------------------
-local espFolder = Instance.new("Folder", player.PlayerGui)
-espFolder.Name = "ExtremeESP"
-
-local function clearESP()
-    espFolder:ClearAllChildren()
-end
-
-local function createESP(plr, color)
-    if plr == player then return end
-    if not plr.Character then return end
-    local hrp = plr.Character:FindFirstChild("HumanoidRootPart")
-    if not hrp then return end
-
-    local billboard = Instance.new("BillboardGui", espFolder)
-    billboard.Name = plr.Name
-    billboard.Adornee = hrp
-    billboard.Size = UDim2.new(0,200,0,50)
-    billboard.AlwaysOnTop = true
-
-    local label = Instance.new("TextLabel", billboard)
-    label.Size = UDim2.new(1,0,1,0)
-    label.BackgroundTransparency = 1
-    label.Text = plr.Name
-    label.Font = Enum.Font.GothamBold
-    label.TextSize = 14
-    label.TextColor3 = color
-end
-
-local function espUpdate()
-    clearESP()
-    for _,plr in pairs(Players:GetPlayers()) do
-        local color = Color3.fromRGB(200,200,200)
-        if plr ~= player then
-            if plr.Backpack:FindFirstChild("Knife") or (plr.Character and plr.Character:FindFirstChild("Knife")) then
-                color = Color3.fromRGB(255,0,0)
-            elseif plr.Backpack:FindFirstChild("Gun") or (plr.Character and plr.Character:FindFirstChild("Gun")) then
-                color = Color3.fromRGB(0,0,255)
-            else
-                local g = getGunDrop()
-                if g then color = Color3.fromRGB(0,255,0) end
-            end
-            createESP(plr, color)
-        end
-    end
-end
-
-do
-    local conn
-    local function esp(state)
-        if state then
-            conn = RS.Heartbeat:Connect(espUpdate)
-        else
-            if conn then conn:Disconnect() end
-            clearESP()
-        end
-    end
-    shared.extremeMenu.esp = function()
-        toggle("ESP", not shared.toggles.ESP, esp)
-    end
-end
-
-----------------------------------------------------------------
--- TP
-----------------------------------------------------------------
-shared.extremeMenu.tpLobby = function()
-    local lobby = workspace:FindFirstChild("Lobby") or workspace:FindFirstChild("Spawn")
-    if lobby and player.Character then
-        player.Character:MoveTo(lobby.Position)
-        notify("TP to Lobby")
-    end
-end
-shared.extremeMenu.tpMurderer = function()
-    local m = getMurderer()
-    if m and m.Character then
-        player.Character:MoveTo(m.Character.HumanoidRootPart.Position + Vector3.new(0,3,0))
-        notify("TP to Murderer")
-    end
-end
-shared.extremeMenu.tpSheriff = function()
-    local s = getSheriff()
-    if s and s.Character then
-        player.Character:MoveTo(s.Character.HumanoidRootPart.Position + Vector3.new(0,3,0))
-        notify("TP to Sheriff")
-    end
-end
-shared.extremeMenu.tpGun = function()
-    local g = getGunDrop()
-    if g then
-        player.Character:MoveTo(g.Position + Vector3.new(0,3,0))
-        notify("TP to Gun")
-    end
-end
-
-----------------------------------------------------------------
--- Fling
-----------------------------------------------------------------
-shared.extremeMenu.flingNearest = function()
-    local nearest, dist = nil, math.huge
-    for _,plr in pairs(Players:GetPlayers()) do
-        if plr ~= player and plr.Character and plr.Character:FindFirstChild("HumanoidRootPart") then
-            local d = (plr.Character.HumanoidRootPart.Position - player.Character.HumanoidRootPart.Position).Magnitude
-            if d < dist then
-                dist = d
-                nearest = plr
-            end
-        end
-    end
-    if nearest then
-        local hrp = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
-        if hrp then
-            notify("Flinging " .. nearest.Name)
-            for i=1,40 do
-                hrp.AssemblyLinearVelocity = (nearest.Character.HumanoidRootPart.Position - hrp.Position).Unit * 200
-                task.wait(0.05)
-            end
-        end
-    end
-end
-
-----------------------------------------------------------------
--- Auto-Reenable after respawn
-----------------------------------------------------------------
-player.CharacterAdded:Connect(function()
-    task.wait(2)
-    for name, state in pairs(shared.toggles) do
-        if state and shared.extremeMenu[name:lower()] then
-            shared.extremeMenu[name:lower()]()
-        end
-    end
+UIS.InputBegan:Connect(function(input, gameProcessed)
+	if gameProcessed then return end
+	if input.KeyCode == Enum.KeyCode.B then
+		screenGui.Enabled = not screenGui.Enabled
+		hint.Visible = not screenGui.Enabled
+	end
 end)
 
-----------------------------------------------------------------
-return shared.extremeMenu
+print("✅ Extreme Menu Loaded")
