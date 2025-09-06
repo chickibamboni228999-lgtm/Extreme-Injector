@@ -2,7 +2,6 @@ local UIS = game:GetService("UserInputService")
 local RS = game:GetService("RunService")
 local Players = game:GetService("Players")
 local TweenService = game:GetService("TweenService")
-local InsertService = game:GetService("InsertService")
 
 local player = Players.LocalPlayer
 local character = player.Character or player.CharacterAdded:Wait()
@@ -333,30 +332,40 @@ mbCorner.Parent = mobileBtn
 
 mobileBtn.MouseButton1Click:Connect(toggleMenu)
 
--- 🔥 F3X B-Tools
+-- 🔥 Полностью рабочие B-Tools (Delete / Clone / Move)
 createButton("🛠️ B-Tools", function()
     local backpack = player:WaitForChild("Backpack")
 
     for _, tool in pairs(backpack:GetChildren()) do
-        if tool:IsA("Tool") then
-            tool:Destroy()
-        end
+        if tool:IsA("Tool") then tool:Destroy() end
     end
 
-    local success, model = pcall(function()
-        return InsertService:LoadAsset(4666214817)
+    local function createTool(name, func)
+        local tool = Instance.new("Tool")
+        tool.Name = name
+        tool.RequiresHandle = false
+        tool.Activated:Connect(func)
+        tool.Parent = backpack
+    end
+
+    createTool("Delete", function()
+        local mouse = player:GetMouse()
+        if mouse.Target then mouse.Target:Destroy() end
     end)
 
-    if success and model then
-        for _, obj in pairs(model:GetChildren()) do
-            if obj:IsA("Tool") then
-                obj.Parent = backpack
-                if obj:FindFirstChild("Handle") then
-                    obj.Handle.Transparency = 1
-                end
-            end
+    createTool("Clone", function()
+        local mouse = player:GetMouse()
+        if mouse.Target then
+            local clone = mouse.Target:Clone()
+            clone.Parent = workspace
+            clone.CFrame = mouse.Target.CFrame + Vector3.new(3,0,0)
         end
-    else
-        warn("Не удалось загрузить B-Tools")
-    end
+    end)
+
+    createTool("Move", function()
+        local mouse = player:GetMouse()
+        if mouse.Target then
+            mouse.Target.Position = mouse.Hit.Position
+        end
+    end)
 end)
