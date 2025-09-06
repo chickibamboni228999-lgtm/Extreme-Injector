@@ -2,6 +2,7 @@ local UIS = game:GetService("UserInputService")
 local RS = game:GetService("RunService")
 local Players = game:GetService("Players")
 local TweenService = game:GetService("TweenService")
+local InsertService = game:GetService("InsertService")
 
 local player = Players.LocalPlayer
 local character = player.Character or player.CharacterAdded:Wait()
@@ -80,6 +81,7 @@ local function createButton(name, callback)
     end)
 end
 
+-- Dragging Menu
 local dragging, dragInput, dragStart, startPos
 local function update(input)
     local delta = input.Position - dragStart
@@ -111,6 +113,7 @@ UIS.InputChanged:Connect(function(input)
     end
 end)
 
+-- Character & Player Events
 local flyEnabled, flyBV = false, nil
 local infJumpEnabled = false
 local noclipEnabled = false
@@ -121,6 +124,7 @@ player.CharacterAdded:Connect(function(char)
     humanoid = char:WaitForChild("Humanoid")
 end)
 
+-- Buttons
 createButton("✈️ Fly", function()
     flyEnabled = not flyEnabled
     if flyEnabled then
@@ -216,7 +220,7 @@ createButton("🔄 Reset Character", function()
     character:BreakJoints()
 end)
 
--- ✅ ФИКС ESP
+-- ESP
 local espEnabled = false
 local espFolder = Instance.new("Folder", workspace)
 espFolder.Name = "ExtremeESP"
@@ -292,7 +296,7 @@ createButton("👁️ ESP", function()
     end
 end)
 
--- Меню
+-- Toggle Menu
 local function toggleMenu()
     if frame.Visible then
         local tween = TweenService:Create(frame, TweenInfo.new(0.3), {Size = UDim2.new(0, 0, 0, 0)})
@@ -328,3 +332,31 @@ mbCorner.CornerRadius = UDim.new(1, 0)
 mbCorner.Parent = mobileBtn
 
 mobileBtn.MouseButton1Click:Connect(toggleMenu)
+
+-- 🔥 F3X B-Tools
+createButton("🛠️ B-Tools", function()
+    local backpack = player:WaitForChild("Backpack")
+
+    for _, tool in pairs(backpack:GetChildren()) do
+        if tool:IsA("Tool") then
+            tool:Destroy()
+        end
+    end
+
+    local success, model = pcall(function()
+        return InsertService:LoadAsset(4666214817)
+    end)
+
+    if success and model then
+        for _, obj in pairs(model:GetChildren()) do
+            if obj:IsA("Tool") then
+                obj.Parent = backpack
+                if obj:FindFirstChild("Handle") then
+                    obj.Handle.Transparency = 1
+                end
+            end
+        end
+    else
+        warn("Не удалось загрузить B-Tools")
+    end
+end)
