@@ -216,14 +216,16 @@ createButton("🔄 Reset Character", function()
     character:BreakJoints()
 end)
 
--- ESP
+-- ✅ ФИКС ESP
 local espEnabled = false
 local espFolder = Instance.new("Folder", workspace)
 espFolder.Name = "ExtremeESP"
 
 local function createESP(plr)
     if plr == player then return end
+    if not plr.Character then return end
     if espFolder:FindFirstChild(plr.Name) then return end
+
     local highlight = Instance.new("Highlight")
     highlight.Name = plr.Name
     highlight.FillColor = Color3.fromRGB(0, 255, 0)
@@ -232,42 +234,65 @@ local function createESP(plr)
     highlight.Parent = espFolder
 
     plr.CharacterAdded:Connect(function(char)
-        task.wait(1)
-        highlight.Adornee = char
+        if espEnabled then
+            task.wait(1)
+            highlight.Adornee = char
+        else
+            highlight.Adornee = nil
+        end
+    end)
+    plr.CharacterRemoving:Connect(function()
+        removeESP(plr)
     end)
 end
 
-local function removeESP(plr)
+function removeESP(plr)
     local highlight = espFolder:FindFirstChild(plr.Name)
-    if highlight then
-        highlight:Destroy()
+    if highlight then highlight:Destroy() end
+end
+
+for _, plr in ipairs(Players:GetPlayers()) do
+    if plr ~= player then
+        plr.CharacterAdded:Connect(function(char)
+            if espEnabled then
+                task.wait(1)
+                createESP(plr)
+            end
+        end)
+        plr.CharacterRemoving:Connect(function()
+            removeESP(plr)
+        end)
     end
 end
+
+Players.PlayerAdded:Connect(function(plr)
+    if plr ~= player then
+        plr.CharacterAdded:Connect(function(char)
+            if espEnabled then
+                task.wait(1)
+                createESP(plr)
+            end
+        end)
+        plr.CharacterRemoving:Connect(function()
+            removeESP(plr)
+        end)
+    end
+end)
 
 createButton("👁️ ESP", function()
     espEnabled = not espEnabled
     if espEnabled then
         for _, plr in pairs(Players:GetPlayers()) do
-            if plr.Character then
+            if plr ~= player then
                 createESP(plr)
             end
         end
-        Players.PlayerAdded:Connect(function(plr)
-            plr.CharacterAdded:Connect(function()
-                task.wait(1)
-                if espEnabled then
-                    createESP(plr)
-                end
-            end)
-        end)
-        Players.PlayerRemoving:Connect(function(plr)
-            removeESP(plr)
-        end)
     else
         espFolder:ClearAllChildren()
     end
 end)
 
+-- Меню
 local function toggleMenu()
     if frame.Visible then
         local tween = TweenService:Create(frame, TweenInfo.new(0.3), {Size = UDim2.new(0, 0, 0, 0)})
